@@ -7,6 +7,7 @@ Designed to be reusable across different datasets — just swap in a new DataFra
 
 ```
 ai-modelling/src/data/preprocessing.py
+ai-modelling/src/data/transforms.py
 ```
 
 ## Requirements
@@ -193,3 +194,53 @@ cleaned_df = cleaner.clean()
 ```bash
 pytest ai-modelling/tests/test_preprocessing.py -v
 ```
+
+## Environmental Data Transforms
+
+Use `transforms.py` for time-aware interpolation and model-oriented scaling.
+These are kept separate from `DataCleaner` so generic cleaning stays independent
+from temporal logic and training transforms.
+
+### `interpolate_time_series(df, time_col, cols, group_cols, method, limit_direction)`
+
+Interpolates selected columns after sorting by time. If `group_cols` is supplied,
+each group is interpolated independently.
+
+```python
+from src.data import interpolate_time_series
+
+weather_df = interpolate_time_series(
+    df,
+    time_col="fire_start_date",
+    group_cols=["cell_id"],
+    cols=["soil_moisture", "precipitation_mm"],
+    method="linear",
+)
+```
+
+Typical use:
+- `soil_moisture`: linear interpolation over time
+- `precipitation_mm`: forward fill may be more appropriate in some datasets, but
+  that should be decided at the pipeline level
+
+### `scale_features(df, cols, method, suffix)`
+
+Creates scaled copies of selected numeric columns and returns scaling parameters.
+
+```python
+from src.data import scale_features
+
+scaled_df, params = scale_features(
+    df,
+    cols=["max_temp_c", "elevation_m"],
+    method="standard",
+)
+```
+
+Supported methods:
+- `"standard"`: `(x - mean) / std`
+- `"minmax"`: `(x - min) / (max - min)`
+
+Recommended usage:
+- `minmax` for bounded features such as `ndvi_at_ignition`
+- `standard` for broader continuous features such as `max_temp_c`

@@ -13,7 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.data import DataCleaner
+from src.data import DataCleaner, interpolate_time_series, scale_features
 
 
 # ---------------------------------------------------------------------------
@@ -218,6 +218,67 @@ class TestCastTypes:
         cleaner = DataCleaner(fire_df_clean)
         cleaner.cast_types()
         assert any("skipped" in entry for entry in cleaner._log)
+
+
+# ---------------------------------------------------------------------------
+# Environmental transform tests
+# ---------------------------------------------------------------------------
+
+class TestInterpolation:
+    def test_interpolate_time_series_per_group(self):
+        df = pd.DataFrame({
+            "cell_id": ["A", "A", "A", "B", "B", "B"],
+            "fire_start_date": [
+                "2024-01-01", "2024-01-02", "2024-01-03",
+                "2024-01-01", "2024-01-02", "2024-01-03",
+            ],
+            "soil_moisture": [0.10, np.nan, 0.30, 0.50, np.nan, 0.70],
+        })
+
+        result = interpolate_time_series(
+            df,
+            time_col="fire_start_date",
+            group_cols=["cell_id"],
+            cols=["soil_moisture"],
+        )
+
+        assert result.loc[result["cell_id"] == "A", "soil_moisture"].tolist() == [0.10, 0.20, 0.30]
+        assert result.loc[result["cell_id"] == "B", "soil_moisture"].tolist() == [0.50, 0.60, 0.70]
+
+    def test_missing_time_column_raises(self):
+        df = pd.DataFrame({"soil_moisture": [0.1, np.nan, 0.3]})
+
+        with pytest.raises(KeyError, match="time column"):
+            interpolate_time_series(df, time_col="timestamp", cols=["soil_moisture"])
+
+
+class TestScaling:
+    def test_standard_scaling_creates_new_columns_and_params(self):
+        df = pd.DataFrame({
+            "max_temp_c": [30.0, 40.0, 50.0],
+            "elevation_m": [100.0, 200.0, 300.0],
+        })
+
+        scaled_df, params = scale_features(df, ["max_temp_c", "elevation_m"], method="standard")
+
+        assert "max_temp_c_standard" in scaled_df.columns
+        assert "elevation_m_standard" in scaled_df.columns
+        assert pytest.approx(float(scaled_df["max_temp_c_standard"].mean()), abs=1e-9) == 0.0
+        assert params["max_temp_c"]["mean"] == 40.0
+
+    def test_minmax_scaling_bounds_values_between_zero_and_one(self):
+        df = pd.DataFrame({"ndvi_at_ignition": [-1.0, 0.0, 1.0]})
+
+        scaled_df, params = scale_features(df, ["ndvi_at_ignition"], method="minmax")
+
+        assert scaled_df["ndvi_at_ignition_minmax"].tolist() == [0.0, 0.5, 1.0]
+        assert params["ndvi_at_ignition"] == {"min": -1.0, "max": 1.0}
+
+    def test_invalid_scaling_method_raises(self):
+        df = pd.DataFrame({"max_temp_c": [30.0, 40.0]})
+
+        with pytest.raises(ValueError, match="method must"):
+            scale_features(df, ["max_temp_c"], method="robust")
 
 
 # ---------------------------------------------------------------------------
