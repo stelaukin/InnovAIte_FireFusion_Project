@@ -7,7 +7,7 @@ It is designed to support the FireFusion AI modelling stream by supplying long-t
 ## Data Source
 **TerraClimate (IDAHO_EPSCOR/TERRACLIMATE)**
 - Monthly resolution
-- Around 4km spatial resolution
+- Around 4 km spatial resolution
 - Covers from 1958-present
 
 ## Selected Variables
