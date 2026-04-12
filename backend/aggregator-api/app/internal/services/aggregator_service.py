@@ -10,7 +10,7 @@ class AggregatorService:
     async def handle_events_update(self):
 
         # get data from database
-        data: list[FireEvent] = self.repository.get_recent_events(365)
+        data: list[FireEvent] = await self.repository.get_recent_events(365)
 
         for d in data:
             print(d.event_id)
