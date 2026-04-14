@@ -5,17 +5,17 @@ from pathlib import Path
 
 class GeoJsonService:
     def __init__(self):
-        self.data_file = Path(__file__).resolve().parents[2] / "data" / "geojson_data.json"
+        pass
+
 
     def get_geojson(self):
-        with open(self.data_file, "r", encoding="utf-8") as file:
-            data = json.load(file)
 
-        all_features = data["features"]
+        choice = str(random.randint(0, 9))
 
-        selected_features = random.sample(all_features, k=3)
+        data_file = Path(__file__).resolve().parents[2] / "data" / f"geojson_data-{choice}.json"
+        data = json.loads(data_file.read_text())
 
         return {
             "type": "FeatureCollection",
-            "features": selected_features
+            "features": data
         }
