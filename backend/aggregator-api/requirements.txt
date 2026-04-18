@@ -1,5 +1,4 @@
 fastapi[standard]
 psycopg
-psycopg2
 aio_pika
 python-dotenv

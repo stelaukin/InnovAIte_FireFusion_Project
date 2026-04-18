@@ -1,4 +1,4 @@
-import psycopg2
+from psycopg import AsyncConnection
 from ..models.fire_event import FireEvent
 from ...config.config import environment
 
@@ -13,18 +13,17 @@ class AggregatorRepository():
     def __init__(self):
         self.db_url = environment.relational_db_url
 
-    def get_recent_events(self, days=14) -> list[FireEvent]:
+    async def get_recent_events(self, days=14) -> list[FireEvent]:
 
         # get events from last n days
         # start counting back from database CURRENT_DATE
 
-        connection = psycopg2.connect(self.db_url)
+        async with await AsyncConnection.connect(self.db_url) as connection:
 
-        try:
-            with connection, connection.cursor() as cursor: 
+            async with connection.cursor() as cursor: 
 
                 # execute sql, passing number of days as parameter
-                cursor.execute(RECENT_DATA_SQL_QUERY, (days,))
+                await cursor.execute(RECENT_DATA_SQL_QUERY, (days,))
 
                 # if query SELECT nothing return no events
                 if cursor.description is None:
@@ -35,7 +34,7 @@ class AggregatorRepository():
 
 
                 # each SELECT row is given as tuple
-                rows: list[tuple] = cursor.fetchall()
+                rows: list[tuple] = await cursor.fetchall()
 
                 # convert each tuple into the model
                 events = []
@@ -48,5 +47,3 @@ class AggregatorRepository():
                     events.append(FireEvent(**row_dict))
 
                 return events
-        finally:
-            connection.close()
